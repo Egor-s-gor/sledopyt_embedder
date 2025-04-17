@@ -1,0 +1,49 @@
+# Data paths
+data:
+  train_path: "/root/sledopyt/all_data.csv" # Path to training data Excel file
+  q2q_train_path: 
+  q2p_train_path:
+  eval_pickle_path: "/home/datalab/nfs/nfs/q2p_model/set_pairs/evaluation_data_from_q2p_old_q_lower_p_base" # Path to evaluation data pickle file
+  train_query_column: "text_1"
+  train_passage_column: "text_2"
+  query_prefix: "query:"
+  passage_prefix: "passage:"
+
+# Model configuration
+model:
+  base_model_name_or_path: "intfloat/multilingual-e5-large" # Path or Hugging Face name of the base model
+  save_path: "/root/sledopyt/checkpoints" # Directory to save the fine-tuned model
+
+# Training arguments (refer to SentenceTransformerTrainingArguments documentation)
+training:
+  output_dir: ".../training_output" # Directory for checkpoints and logs
+  num_train_epochs: 10
+  per_device_train_batch_size: 64
+  learning_rate: 1.0e-5
+  gradient_accumulation_steps: 1
+  weight_decay: 0.01
+  warmup_ratio: 0.1 # Example: Add warmup steps (e.g., 10% of total steps)
+  lr_scheduler_type: "linear" # Example: Specify LR scheduler type
+  fp16: false # Set to true if your GPU supports FP16 and you want faster training
+  bf16: false # Set to true if your GPU supports BF16
+  batch_sampler: "NO_DUPLICATES" # Or NONE, ALL_TRIPLETS etc. NO_DUPLICATES is good for MNRL
+  save_strategy: "steps"
+  save_steps: 350
+  save_total_limit: 2 # Keep more than just the best maybe?
+  load_best_model_at_end: true
+  metric_for_best_model: "eval_loss" # Check the exact metric name logged by the evaluator
+  eval_strategy: "steps"
+  eval_steps: 50
+  logging_steps: 10 # Log training loss more frequently
+  report_to: "tensorboard" # Enable TensorBoard logging
+  logging_dir: ".../training_output/logs" # Specific directory for TensorBoard logs
+
+  push_to_hub: true                     # <<< Включить загрузку на Hub
+  hub_model_id: "George2002/sledopyt_embedder" # <<< Укажите имя репозитория
+  hub_strategy: "end"                   # <<< Стратегия загрузки ('end', 'every_save', 'checkpoint')
+  hub_private_repo: true
+
+# Evaluation configuration
+evaluation:
+  ir_accuracy_at_k: [1, 3, 5]
+  eval_name: "ir_eval"

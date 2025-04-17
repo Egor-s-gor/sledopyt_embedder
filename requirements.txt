@@ -1,0 +1,9 @@
+sentence-transformers>=2.3.0 # Или новее
+torch>=1.10.0 # Убедись, что версия совместима с твоим CUDA
+pandas
+openpyxl # Для чтения .xlsx файлов
+datasets>=2.0.0
+PyYAML>=5.4 # Для чтения config.yaml
+tensorboard # Для логирования
+accelerate>=0.20.0 # Используется SentenceTransformerTrainer
+# numpy - обычно ставится как зависимость
