@@ -121,44 +121,53 @@ def load_and_prepare_data(config: Dict[str, Any]) -> (Dataset, Dataset):
     """Загружает данные для q2q и q2p раздельно и объединяет с меткой типа."""
     data_config = config['data']
     
-    # Загрузка query2query данных
-    q2q_df = pd.read_csv(data_config['q2q_train_path'])
-    q2q_df.dropna(subset=[data_config['train_query_column'], data_config['train_passage_column']], inplace=True)
-    q2q_df = q2q_df.astype(str)
+    # # Загрузка query2query данных
+    # q2q_df = pd.read_csv(data_config['q2q_train_path'])
+    # q2q_df.dropna(subset=[data_config['train_query_column'], data_config['train_passage_column']], inplace=True)
+    # q2q_df = q2q_df.astype(str)
     
-    # Загрузка query2passage данных
-    q2p_df = pd.read_csv(data_config['q2p_train_path'])
-    q2p_df.dropna(subset=[data_config['train_query_column'], data_config['train_passage_column']], inplace=True)
-    q2p_df = q2p_df.astype(str)
+    # # Загрузка query2passage данных
+    # q2p_df = pd.read_csv(data_config['q2p_train_path'])
+    # q2p_df.dropna(subset=[data_config['train_query_column'], data_config['train_passage_column']], inplace=True)
+    # q2p_df = q2p_df.astype(str)
     
-    # Создание примеров с префиксами и меткой типа
-    q2q_examples = []
-    for _, row in q2q_df.iterrows():
-        query = row[data_config['train_query_column']]
-        passage = row[data_config['train_passage_column']]
-        q2q_examples.append({'anchor': query, 'positive': passage, 'task_type': 'q2q'})
+    # # Создание примеров с префиксами и меткой типа
+    # q2q_examples = []
+    # for _, row in q2q_df.iterrows():
+    #     query = row[data_config['train_query_column']]
+    #     passage = row[data_config['train_passage_column']]
+    #     q2q_examples.append({'anchor': query, 'positive': passage, 'task_type': 'q2q'})
     
-    q2p_examples = []
-    for _, row in q2p_df.iterrows():
-        query = row[data_config['train_query_column']]
-        passage = row[data_config['train_passage_column']]
-        q2p_examples.append({'anchor': query, 'positive': passage, 'task_type': 'q2p'})
-    
-    # Объединение датасетов
-    # combined_dataset = Dataset.from_list(q2q_examples + q2p_examples)
-    combined_dataset = Dataset.from_list(q2p_examples)
-    
-    # Разделение на train/eval
+    # q2p_examples = []
+    # for _, row in q2p_df.iterrows():
+    #     query = row[data_config['train_query_column']]
+    #     passage = row[data_config['train_passage_column']]
+    #     q2p_examples.append({'anchor': query, 'positive': passage, 'task_type': 'q2p'})
+
+    q2q_dataset = load_dataset("csv", data_files=data_config['q2q_train_path'], split='train')
+    q2p_dataset = load_dataset("csv", data_files=data_config['q2p_train_path'], split='train')
+
     validation_size = config['training'].get('validation_split_size', 0.05)
-    if validation_size > 0:
-        dataset_dict = combined_dataset.train_test_split(test_size=validation_size, seed=config['training'].get('seed', 42))
-        train_dataset = dataset_dict["train"]
-        eval_dataset = dataset_dict["test"]
-    else:
-        train_dataset = combined_dataset
-        eval_dataset = None
+
+    q2q_dataset = q2q_dataset.train_test_split(test_size=validation_size, seed=config['training'].get('seed', 42))
+    q2q_train_dataset = dataset_dict["train"]
+    q2q_eval_dataset = dataset_dict["test"]
+
+    q2p_dataset = q2p_dataset.train_test_split(test_size=validation_size, seed=config['training'].get('seed', 42))
+    q2p_train_dataset = dataset_dict["train"]
+    q2p_eval_dataset = dataset_dict["test"]
+
+    train_dataset_dict = {
+        'q2q_data': q2q_train_dataset,
+        'q2p_data': q2p_train_dataset
+    }
+
+    eval_dataset_dict = {
+        'q2q_data': q2q_eval_dataset,
+        'q2p_data': q2p_eval_dataset
+    }
     
-    return train_dataset, eval_dataset
+    return train_dataset_dict, eval_dataset_dict
 
 
 from torch.utils.data import BatchSampler
@@ -214,10 +223,10 @@ def initialize_model_and_loss(config: Dict[str, Any]) -> (SentenceTransformer, t
     # MultipleNegativesRankingLoss подходит для пар запрос-пассаж
     # Ожидает Dataset с колонками 'anchor' и 'positive'
     # Негативные примеры автоматически сэмплируются из батча
-    loss_name = config['training'].get('loss_function', 'MultipleNegativesRankingLoss')
-    if loss_name == 'MultipleNegativesRankingLoss':
-        logging.info("Используется функция потерь: MultipleNegativesRankingLoss")
-        loss = losses.MultipleNegativesRankingLoss(model)
+    loss_name = config['training'].get('loss_function', 'TripletLoss')
+    if loss_name == 'TripletLoss':
+        logging.info("Используется функция потерь: TripletLoss")
+        loss = losses.TripletLoss(model)
     # Добавьте другие функции потерь при необходимости
     # elif loss_name == 'SomeOtherLoss':
     #    loss = losses.SomeOtherLoss(model, ...)
@@ -266,14 +275,14 @@ def setup_training(
         logging_dir.mkdir(parents=True, exist_ok=True)
 
         # Map batch sampler string from config to enum
-        # sampler_str = training_config.get("batch_sampler", "NO_DUPLICATES").upper()
-        # # Убедимся, что значение существует в BatchSamplers
-        # try:
-        #     batch_sampler = BatchSamplers[sampler_str]
-        #     logging.info(f"Используется BatchSampler: {batch_sampler}")
-        # except KeyError:
-        #     logging.warning(f"Неверный batch_sampler '{sampler_str}'. Используется NO_DUPLICATES.")
-        #     batch_sampler = BatchSamplers.NO_DUPLICATES
+        sampler_str = training_config.get("batch_sampler", "NO_DUPLICATES").upper()
+        # Убедимся, что значение существует в BatchSamplers
+        try:
+            batch_sampler = BatchSamplers[sampler_str]
+            logging.info(f"Используется BatchSampler: {batch_sampler}")
+        except KeyError:
+            logging.warning(f"Неверный batch_sampler '{sampler_str}'. Используется NO_DUPLICATES.")
+            batch_sampler = BatchSamplers.NO_DUPLICATES
 
         # Определение стратегии оценки и сохранения
         eval_strategy = training_config.get('eval_strategy', 'epoch' if eval_dataset else 'no')

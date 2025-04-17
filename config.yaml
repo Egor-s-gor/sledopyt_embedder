@@ -1,8 +1,8 @@
 # Data paths
 data:
   train_path: "/root/sledopyt/all_data.csv" # Path to training data Excel file
-  q2q_train_path: 
-  q2p_train_path:
+  q2q_train_path: /Users/georgijzarov/Desktop/all_need/q2q_dataset_with_negatives.csv
+  q2p_train_path: /Users/georgijzarov/Desktop/all_need/q2p_dataset_with_negatives.csv
   eval_pickle_path: "/home/datalab/nfs/nfs/q2p_model/set_pairs/evaluation_data_from_q2p_old_q_lower_p_base" # Path to evaluation data pickle file
   train_query_column: "text_1"
   train_passage_column: "text_2"
