@@ -134,18 +134,19 @@ def load_and_prepare_data(config: Dict[str, Any]) -> (Dataset, Dataset):
     # Создание примеров с префиксами и меткой типа
     q2q_examples = []
     for _, row in q2q_df.iterrows():
-        # query = f"query: {row[data_config['train_query_column']]}"
-        # passage = f"query: {row[data_config['train_passage_column']]}"
+        query = row[data_config['train_query_column']]
+        passage = row[data_config['train_passage_column']]
         q2q_examples.append({'anchor': query, 'positive': passage, 'task_type': 'q2q'})
     
     q2p_examples = []
     for _, row in q2p_df.iterrows():
-        # query = f"query: {row[data_config['train_query_column']]}"
-        # passage = f"passage: {row[data_config['train_passage_column']]}"
+        query = row[data_config['train_query_column']]
+        passage = row[data_config['train_passage_column']]
         q2p_examples.append({'anchor': query, 'positive': passage, 'task_type': 'q2p'})
     
     # Объединение датасетов
-    combined_dataset = Dataset.from_list(q2q_examples + q2p_examples)
+    # combined_dataset = Dataset.from_list(q2q_examples + q2p_examples)
+    combined_dataset = Dataset.from_list(q2p_examples)
     
     # Разделение на train/eval
     validation_size = config['training'].get('validation_split_size', 0.05)
@@ -297,17 +298,19 @@ def setup_training(
             hub_model_id = output_dir.name # Использовать имя папки вывода как ID модели, если не указано
             logging.warning(f"hub_model_id не указан, используется имя папки вывода: {hub_model_id}")
 
-        batch_size = training_config.get('per_device_train_batch_size', 64)
-        train_sampler = TaskTypeBatchSampler(
-            train_dataset, 
-            batch_size=batch_size,
-            shuffle=config['training'].get('shuffle', True)
-        )
+        # batch_size = training_config.get('per_device_train_batch_size', 64)
+        # train_sampler = TaskTypeBatchSampler(
+        # train_dataset, 
+        # batch_size=batch_size,
+        # shuffle=training_config.get('shuffle', True)
+        # )
+        
 
         training_args = SentenceTransformerTrainingArguments(
             output_dir=str(Path(training_config['output_dir'])),
             num_train_epochs=training_config.get('num_train_epochs', 3),
             per_device_train_batch_size=training_config.get('per_device_train_batch_size', 16),
+            # per_device_train_batch_size=1,
             learning_rate=training_config.get('learning_rate', 2e-5),
             gradient_accumulation_steps=training_config.get('gradient_accumulation_steps', 1),
             weight_decay=training_config.get('weight_decay', 0.01),
@@ -316,11 +319,6 @@ def setup_training(
             fp16=training_config.get('fp16', False),
             bf16=training_config.get('bf16', False),
             # batch_sampler=batch_sampler,
-            data_loader_kwargs={
-                'sampler': train_sampler,
-                'batch_size': 1,
-                'drop_last': False
-            }
             eval_strategy=training_config.get('eval_strategy', 'steps'),
             eval_steps=training_config.get('eval_steps', 25),
             save_strategy=training_config.get('save_strategy', 'steps'),
