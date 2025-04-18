@@ -5,6 +5,7 @@ import yaml
 import os
 from pathlib import Path
 from typing import Dict, List, Any
+from datasets import load_dataset
 
 import pandas as pd
 import torch
@@ -150,12 +151,14 @@ def load_and_prepare_data(config: Dict[str, Any]) -> (Dataset, Dataset):
     validation_size = config['training'].get('validation_split_size', 0.05)
 
     q2q_dataset = q2q_dataset.train_test_split(test_size=validation_size, seed=config['training'].get('seed', 42))
-    q2q_train_dataset = dataset_dict["train"]
-    q2q_eval_dataset = dataset_dict["test"]
+    q2q_train_dataset = q2q_dataset["train"]
+    q2q_eval_dataset = q2q_dataset["test"]
+
+    print('\n', q2q_train_dataset[0], '\n')
 
     q2p_dataset = q2p_dataset.train_test_split(test_size=validation_size, seed=config['training'].get('seed', 42))
-    q2p_train_dataset = dataset_dict["train"]
-    q2p_eval_dataset = dataset_dict["test"]
+    q2p_train_dataset = q2p_dataset["train"]
+    q2p_eval_dataset = q2p_dataset["test"]
 
     train_dataset_dict = {
         'q2q_data': q2q_train_dataset,
@@ -457,3 +460,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(args.config)
+
+    import os
